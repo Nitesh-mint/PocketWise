@@ -1,0 +1,29 @@
+package com.pocketwise.core.data.local
+
+import androidx.room.Dao
+import androidx.room.Delete
+import androidx.room.Insert
+import androidx.room.Query
+import androidx.room.Update
+import kotlinx.coroutines.flow.Flow
+
+@Dao
+interface ExpenseDao {
+    @Insert
+    suspend fun insert(expense: ExpenseEntity): Long
+
+    @Update
+    suspend fun update(expense: ExpenseEntity)
+
+    @Delete
+    suspend fun delete(expense: ExpenseEntity)
+
+    @Query("SELECT * FROM expenses WHERE id = :id")
+    suspend fun getById(id: Long): ExpenseEntity?
+
+    @Query("SELECT * FROM expenses ORDER BY timestamp DESC")
+    fun observeAll(): Flow<List<ExpenseEntity>>
+
+    @Query("SELECT * FROM expenses WHERE timestamp >= :startMillis AND timestamp < :endMillis ORDER BY timestamp DESC")
+    fun observeForRange(startMillis: Long, endMillis: Long): Flow<List<ExpenseEntity>>
+}
