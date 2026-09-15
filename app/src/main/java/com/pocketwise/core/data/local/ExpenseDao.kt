@@ -26,4 +26,10 @@ interface ExpenseDao {
 
     @Query("SELECT * FROM expenses WHERE timestamp >= :startMillis AND timestamp < :endMillis ORDER BY timestamp DESC")
     fun observeForRange(startMillis: Long, endMillis: Long): Flow<List<ExpenseEntity>>
+
+    @Query("UPDATE expenses SET category = :newName WHERE category = :oldName")
+    suspend fun renameCategory(oldName: String, newName: String)
+
+    @Query("UPDATE expenses SET currency = :code")
+    suspend fun setCurrencyForAll(code: String)
 }

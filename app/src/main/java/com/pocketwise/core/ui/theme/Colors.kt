@@ -25,6 +25,10 @@ object AppColors {
     val onSurfaceDark = Color(0xFFF5F5F5)
     val secondaryDark = Color(0xFF20242B)
     val mutedForegroundDark = Color(0xFF9499A0)
+    // One step lighter than secondaryDark — reserved for the one card that
+    // should read as "more elevated than everything else": still a plain
+    // neutral, not a color, consistent with the rest of the monochrome theme.
+    val heroSurfaceDark = Color(0xFF262B33)
 
     // Neutral "primary" (near-black/white) — the inverted hero-card color,
     // same value pair in both themes (dark mode's hero card is the light one).
@@ -45,6 +49,25 @@ object AppColors {
     val dashPositive = Color(0xFF439976)
     val dashNegative = Color(0xFFC15C62)
     val dashCaution = Color(0xFFD8B260)
+
+    // Chart categorical palette — the one place real hue is allowed, because
+    // here color IS data (category identity). Fixed order, validated against
+    // the card surfaces (secondaryLight / secondaryDark): adjacent colorblind
+    // ΔE ≥ 9.1 light / 8.4 dark, normal-vision ΔE ≥ 19.3. The ORDER is the
+    // colorblind-safety mechanism — never re-order, never cycle or generate a
+    // 9th. Four light hues sit under 3:1 on the card, so charts must always
+    // show text labels next to them (never color alone).
+    val chartCategoricalLight = listOf(
+        Color(0xFF2A78D6), Color(0xFFEB6834), Color(0xFF1BAF7A), Color(0xFFEDA100),
+        Color(0xFFE87BA4), Color(0xFF008300), Color(0xFF4A3AA7), Color(0xFFE34948),
+    )
+    val chartCategoricalDark = listOf(
+        Color(0xFF3987E5), Color(0xFFD95926), Color(0xFF199E70), Color(0xFFC98500),
+        Color(0xFFD55181), Color(0xFF008300), Color(0xFF9085E9), Color(0xFFE66767),
+    )
+    // "Other" / overflow categories — a neutral, not a 9th hue.
+    val chartNeutralLight = Color(0xFFA3A7AE)
+    val chartNeutralDark = Color(0xFF5C616A)
 }
 
 val PocketWiseLightColors = lightColorScheme(
@@ -62,6 +85,11 @@ val PocketWiseLightColors = lightColorScheme(
     onSecondary = AppColors.nearBlack,
     secondaryContainer = AppColors.secondaryLight,
     onSecondaryContainer = AppColors.nearBlack,
+    // Dedicated role for the dashboard hero card — kept separate from
+    // primaryContainer (used by the nav "+" FAB) so the two can differ in
+    // dark mode without fighting over the same color slot.
+    tertiaryContainer = AppColors.nearBlack,
+    onTertiaryContainer = AppColors.nearWhite,
     outline = AppColors.borderLight,
     error = AppColors.destructiveLight,
     onError = Color.White,
@@ -76,14 +104,19 @@ val PocketWiseDarkColors = darkColorScheme(
     onSurfaceVariant = AppColors.mutedForegroundDark,
     primary = AppColors.brandDark,
     onPrimary = AppColors.nearWhite,
-    // hero card inverts the other way in dark mode — a light card popping
-    // against the dark page, same "invert for emphasis" logic as before
+    // FAB stays the neutral black/white inversion (white button in dark mode).
     primaryContainer = AppColors.nearWhite,
     onPrimaryContainer = AppColors.nearBlack,
     secondary = AppColors.secondaryDark,
     onSecondary = AppColors.onSurfaceDark,
     secondaryContainer = AppColors.secondaryDark,
     onSecondaryContainer = AppColors.onSurfaceDark,
+    // Hero card: a calm, elevated dark neutral — not a color, not an
+    // inverted-white card. This app's whole theme is deliberately monochrome
+    // with accent color reserved for tiny, rare interactive details; the
+    // hero should stand out through elevation and scale, not saturation.
+    tertiaryContainer = AppColors.heroSurfaceDark,
+    onTertiaryContainer = AppColors.onSurfaceDark,
     outline = Color.White.copy(alpha = 0.1f),
     error = AppColors.destructiveDark,
     onError = Color.White,

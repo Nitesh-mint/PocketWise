@@ -1,6 +1,12 @@
 package com.pocketwise.core.model
 
-data class Category(val id: Long = 0, val name: String, val icon: CategoryIcon = CategoryIcon.OTHER)
+// monthlyBudget 0.0 = no limit (same convention as the overall monthly budget).
+data class Category(
+    val id: Long = 0,
+    val name: String,
+    val icon: CategoryIcon = CategoryIcon.OTHER,
+    val monthlyBudget: Double = 0.0
+)
 
 data class DefaultCategory(val name: String, val icon: CategoryIcon)
 

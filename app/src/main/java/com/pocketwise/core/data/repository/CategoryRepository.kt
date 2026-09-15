@@ -15,10 +15,17 @@ class CategoryRepository @Inject constructor(
 ) {
     val categories: Flow<List<Category>> = dao.observeAll().map { list -> list.map { it.toDomain() } }
 
-    suspend fun addCategory(name: String, icon: CategoryIcon) {
+    suspend fun addCategory(name: String, icon: CategoryIcon, monthlyBudget: Double) {
         val trimmed = name.trim()
         if (trimmed.isNotEmpty()) {
-            dao.insert(Category(name = trimmed, icon = icon).toEntity())
+            dao.insert(Category(name = trimmed, icon = icon, monthlyBudget = monthlyBudget.coerceAtLeast(0.0)).toEntity())
+        }
+    }
+
+    suspend fun updateCategory(category: Category, name: String, icon: CategoryIcon, monthlyBudget: Double) {
+        val trimmed = name.trim()
+        if (trimmed.isNotEmpty()) {
+            dao.update(category.copy(name = trimmed, icon = icon, monthlyBudget = monthlyBudget.coerceAtLeast(0.0)).toEntity())
         }
     }
 

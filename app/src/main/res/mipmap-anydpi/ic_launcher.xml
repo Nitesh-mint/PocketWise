@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Adaptive icon (minSdk 26, so no legacy PNGs needed). The foreground is the
+     full artwork on its own dark background; the pocket sits well inside the
+     72dp visible area, so every launcher mask (circle, squircle, square) keeps it whole.
+     The background color matches the artwork's, for launchers that shift layers. -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background" />
+    <foreground android:drawable="@mipmap/ic_launcher_foreground" />
+</adaptive-icon>

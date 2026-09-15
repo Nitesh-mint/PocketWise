@@ -3,6 +3,7 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("com.google.dagger.hilt.android")
     id("com.google.devtools.ksp")
+    id("com.google.gms.google-services") // reads app/google-services.json
 }
 
 android {
@@ -19,7 +20,13 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // Debuggable builds run Compose interpreted (no AOT/baseline
+            // profile) — janky until JIT warms up. Release is the real perf.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
+            // ponytail: debug key so it installs locally; real keystore before shipping.
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 
@@ -34,6 +41,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true // App Check picks the debug vs Play Integrity provider from BuildConfig.DEBUG
     }
 
     composeOptions {
@@ -49,6 +57,21 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     debugImplementation("androidx.compose.ui:ui-tooling")
 
+    // Applies the baseline profiles Compose/Room ship with, so first launch is AOT-compiled.
+    implementation("androidx.profileinstaller:profileinstaller:1.3.1")
+    implementation("androidx.glance:glance-appwidget:1.1.0")
+
+    // App lock: fingerprint/face with phone PIN fallback. 1.1.0 is the latest stable (needs a FragmentActivity).
+    implementation("androidx.biometric:biometric:1.1.0")
+
+    // Voice logging: Gemini via Firebase AI Logic (no custom backend); App Check keeps the key server-side.
+    implementation(platform("com.google.firebase:firebase-bom:34.19.0"))
+    implementation("com.google.firebase:firebase-ai")
+    implementation("com.google.firebase:firebase-appcheck-playintegrity")
+    // Debug provider is used for any install not from Google Play (see App.kt); Play installs use Play Integrity.
+    implementation("com.google.firebase:firebase-appcheck-debug")
+
+    testImplementation("junit:junit:4.13.2")
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.activity:activity-compose:1.9.1")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.4")

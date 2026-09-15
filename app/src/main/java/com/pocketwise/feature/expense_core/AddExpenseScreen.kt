@@ -22,8 +22,11 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Autorenew
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -35,6 +38,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SelectableDates
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -60,6 +64,7 @@ import com.pocketwise.core.model.Category
 import com.pocketwise.core.model.Expense
 import com.pocketwise.core.model.currencySymbolFor
 import com.pocketwise.core.ui.icons.imageVector
+import com.pocketwise.core.util.ordinal
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -91,6 +96,8 @@ fun AddExpenseScreen(
     var showDatePicker by remember { mutableStateOf(false) }
     var editingExpense by remember { mutableStateOf<Expense?>(null) }
     var prefilled by remember { mutableStateOf(false) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+    var repeatMonthly by remember { mutableStateOf(false) }
 
     LaunchedEffect(expenseId) {
         if (expenseId != null) editingExpense = expenseViewModel.getExpenseById(expenseId)
@@ -109,6 +116,10 @@ fun AddExpenseScreen(
 
     val amount = amountText.toDoubleOrNull()
     val canSave = amount != null && amount > 0 && selectedCategory != null && description.isNotBlank()
+    // Editing a real expense means an async DB read before the fields have
+    // real values — render nothing (not empty fields) until that lands, so
+    // the form doesn't visibly pop from blank to filled mid-transition.
+    val isReady = expenseId == null || prefilled
 
     Scaffold(
         topBar = {
@@ -119,31 +130,47 @@ fun AddExpenseScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Cancel")
                     }
                 },
+                // Delete lives here (and behind long-press on Home), not as a
+                // one-tap button on every list row.
+                actions = {
+                    if (editingExpense != null) {
+                        IconButton(onClick = { showDeleteConfirm = true }) {
+                            Icon(Icons.Filled.Delete, contentDescription = "Delete expense")
+                        }
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
             )
         },
         bottomBar = {
-            Column(modifier = Modifier.padding(20.dp)) {
-                Button(
-                    onClick = {
-                        val timestamp = selectedDate.toEpochMillisAtNoon()
-                        val expense = editingExpense
-                        if (expense != null) {
-                            expenseViewModel.updateExpense(expense, amount!!, selectedCategory!!.name, description, timestamp)
-                        } else {
-                            expenseViewModel.addExpense(amount!!, selectedCategory!!.name, description, timestamp)
-                        }
-                        onDone()
-                    },
-                    enabled = canSave,
-                    shape = MaterialTheme.shapes.large,
-                    modifier = Modifier.fillMaxWidth().height(56.dp)
-                ) {
-                    Text("Save Expense", style = MaterialTheme.typography.titleMedium)
+            if (isReady) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Button(
+                        onClick = {
+                            val timestamp = selectedDate.toEpochMillisAtNoon()
+                            val expense = editingExpense
+                            if (expense != null) {
+                                expenseViewModel.updateExpense(expense, amount!!, selectedCategory!!.name, description, timestamp)
+                            } else {
+                                expenseViewModel.addExpense(amount!!, selectedCategory!!.name, description, timestamp)
+                                if (repeatMonthly) {
+                                    expenseViewModel.addRecurring(amount, selectedCategory!!.name, description, selectedDate)
+                                }
+                            }
+                            onDone()
+                        },
+                        enabled = canSave,
+                        shape = MaterialTheme.shapes.large,
+                        modifier = Modifier.fillMaxWidth().height(56.dp)
+                    ) {
+                        Text("Save Expense", style = MaterialTheme.typography.titleMedium)
+                    }
                 }
             }
         }
     ) { padding ->
+        if (!isReady) return@Scaffold
+
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             // Title as a big borderless heading — you're naming this expense,
             // not filling in a boxed form field.
@@ -238,6 +265,16 @@ fun AddExpenseScreen(
                     )
                 }
             }
+
+            // New expenses only — editing one past occurrence shouldn't create a rule.
+            if (editingExpense == null) {
+                RepeatMonthlyRow(
+                    checked = repeatMonthly,
+                    onCheckedChange = { repeatMonthly = it },
+                    dayOfMonth = selectedDate.dayOfMonth,
+                    modifier = Modifier.padding(horizontal = 20.dp).padding(top = 12.dp)
+                )
+            }
         }
     }
 
@@ -264,6 +301,72 @@ fun AddExpenseScreen(
             }
         ) {
             DatePicker(state = datePickerState, showModeToggle = false)
+        }
+    }
+
+    val expense = editingExpense
+    if (showDeleteConfirm && expense != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("Delete expense?") },
+            text = { Text("\"${expense.description}\" ($currencySymbol${trimTrailingZeros(expense.amount)}) will be permanently removed.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    expenseViewModel.deleteExpense(expense)
+                    showDeleteConfirm = false
+                    onDone()
+                }) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel") }
+            }
+        )
+    }
+}
+
+// Same card style as the date row above it.
+@Composable
+private fun RepeatMonthlyRow(checked: Boolean, onCheckedChange: (Boolean) -> Unit, dayOfMonth: Int, modifier: Modifier = Modifier) {
+    Card(
+        shape = MaterialTheme.shapes.medium,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onCheckedChange(!checked) }
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(MaterialTheme.colorScheme.secondaryContainer, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Filled.Autorenew,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            }
+            Column(
+                modifier = Modifier
+                    .padding(start = 12.dp)
+                    .weight(1f)
+            ) {
+                Text("Repeat every month", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                Text(
+                    if (checked) "Added automatically on the ${ordinal(dayOfMonth)} of each month" else "For rent, internet, subscriptions",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Switch(checked = checked, onCheckedChange = onCheckedChange)
         }
     }
 }

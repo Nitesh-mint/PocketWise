@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "797498938581",
+    "project_id": "pocketwise-c7a0a",
+    "storage_bucket": "pocketwise-c7a0a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:797498938581:android:29b00b22724f4366947e5c",
+        "android_client_info": {
+          "package_name": "com.pocketwise"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyADoo1LETCwBq_Nh_ec7GJPbinwuEUG1uY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

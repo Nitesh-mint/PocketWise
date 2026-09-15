@@ -1,10 +1,13 @@
 package com.pocketwise.core.data.local
 
 import android.content.Context
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.doublePreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import androidx.glance.appwidget.updateAll
+import com.pocketwise.feature.widget.PocketWiseWidget
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -21,6 +24,14 @@ class UserPreferences @Inject constructor(
 ) {
     private val currencyKey = stringPreferencesKey("currency_code")
     private val budgetKey = doublePreferencesKey("monthly_budget")
+    private val appLockKey = booleanPreferencesKey("app_lock_enabled")
+
+    /** Opt-in: ask for fingerprint/face (or phone PIN) on open and after 1+ minute away. */
+    val appLockEnabled: Flow<Boolean> = context.dataStore.data.map { it[appLockKey] ?: false }
+
+    suspend fun setAppLockEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[appLockKey] = enabled }
+    }
 
     val currencyCode: Flow<String> = context.dataStore.data.map { it[currencyKey] ?: "USD" }
 
@@ -34,5 +45,8 @@ class UserPreferences @Inject constructor(
 
     suspend fun setMonthlyBudget(amount: Double) {
         context.dataStore.edit { it[budgetKey] = amount }
+        // The widget shows budget status, and nothing else refreshes it on a
+        // budget change (currency changes refresh via ExpenseRepository).
+        PocketWiseWidget().updateAll(context)
     }
 }

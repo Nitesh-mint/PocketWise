@@ -19,8 +19,8 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -30,11 +30,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -44,60 +41,81 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.pocketwise.core.model.Category
 import com.pocketwise.core.model.CategoryIcon
+import com.pocketwise.core.model.currencySymbolFor
 import com.pocketwise.core.ui.icons.PickableCategoryIcons
 import com.pocketwise.core.ui.icons.imageVector
+import com.pocketwise.core.util.formatAmount
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CategoryScreen(onBack: () -> Unit, viewModel: CategoryViewModel = hiltViewModel()) {
+fun CategoryScreen(viewModel: CategoryViewModel = hiltViewModel()) {
     val categories by viewModel.categories.collectAsState()
+    val currencyCode by viewModel.currencyCode.collectAsState()
+    val currencySymbol = currencySymbolFor(currencyCode)
     var newCategoryName by remember { mutableStateOf("") }
     var selectedIcon by remember { mutableStateOf(CategoryIcon.OTHER) }
+    var budgetText by remember { mutableStateOf("") }
     var categoryPendingDelete by remember { mutableStateOf<Category?>(null) }
+    var editingCategory by remember { mutableStateOf<Category?>(null) }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Categories") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
-            )
-        }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = 20.dp)
-        ) {
-            NewCategoryCard(
-                name = newCategoryName,
-                onNameChange = { newCategoryName = it },
-                selectedIcon = selectedIcon,
-                onSelectIcon = { selectedIcon = it },
-                onAdd = {
-                    viewModel.addCategory(newCategoryName, selectedIcon)
-                    newCategoryName = ""
-                    selectedIcon = CategoryIcon.OTHER
-                },
-                modifier = Modifier.padding(top = 16.dp, bottom = 16.dp)
-            )
+    fun resetComposer() {
+        newCategoryName = ""
+        selectedIcon = CategoryIcon.OTHER
+        budgetText = ""
+        editingCategory = null
+    }
 
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(bottom = 16.dp)
-            ) {
-                items(categories, key = { it.id }) { category ->
-                    CategoryRow(category = category, onDelete = { categoryPendingDelete = category })
+    // The app bar is shared across tabs (see MainActivity); this is just the
+    // page content below it.
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 20.dp)
+    ) {
+        NewCategoryCard(
+            name = newCategoryName,
+            onNameChange = { newCategoryName = it },
+            selectedIcon = selectedIcon,
+            onSelectIcon = { selectedIcon = it },
+            budget = budgetText,
+            onBudgetChange = { budgetText = it },
+            currencySymbol = currencySymbol,
+            isEditing = editingCategory != null,
+            onSave = {
+                val editing = editingCategory
+                val budget = budgetText.toDoubleOrNull() ?: 0.0
+                if (editing != null) {
+                    viewModel.updateCategory(editing, newCategoryName, selectedIcon, budget)
+                } else {
+                    viewModel.addCategory(newCategoryName, selectedIcon, budget)
                 }
+                resetComposer()
+            },
+            onCancel = { resetComposer() },
+            modifier = Modifier.padding(top = 8.dp, bottom = 16.dp)
+        )
+
+        LazyColumn(
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(bottom = 16.dp)
+        ) {
+            items(categories, key = { it.id }) { category ->
+                CategoryRow(
+                    category = category,
+                    currencySymbol = currencySymbol,
+                    onClick = {
+                        editingCategory = category
+                        newCategoryName = category.name
+                        selectedIcon = category.icon
+                        budgetText = if (category.monthlyBudget > 0) formatAmount(category.monthlyBudget) else ""
+                    },
+                    onDelete = { categoryPendingDelete = category }
+                )
             }
         }
     }
@@ -128,7 +146,12 @@ private fun NewCategoryCard(
     onNameChange: (String) -> Unit,
     selectedIcon: CategoryIcon,
     onSelectIcon: (CategoryIcon) -> Unit,
-    onAdd: () -> Unit,
+    budget: String,
+    onBudgetChange: (String) -> Unit,
+    currencySymbol: String,
+    isEditing: Boolean,
+    onSave: () -> Unit,
+    onCancel: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -166,13 +189,27 @@ private fun NewCategoryCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            Button(
-                onClick = onAdd,
-                enabled = name.isNotBlank(),
-                shape = MaterialTheme.shapes.medium,
-                modifier = Modifier.fillMaxWidth().height(48.dp)
-            ) {
-                Text("Add Category")
+            CategoryBudgetField(value = budget, onValueChange = onBudgetChange, currencySymbol = currencySymbol)
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (isEditing) {
+                    TextButton(
+                        onClick = onCancel,
+                        modifier = Modifier.height(48.dp)
+                    ) {
+                        Text("Cancel")
+                    }
+                }
+                Button(
+                    onClick = onSave,
+                    enabled = name.isNotBlank(),
+                    shape = MaterialTheme.shapes.medium,
+                    modifier = Modifier.weight(1f).height(48.dp)
+                ) {
+                    Text(if (isEditing) "Save Changes" else "Add Category")
+                }
             }
         }
     }
@@ -198,6 +235,34 @@ private fun CategoryNameField(value: String, onValueChange: (String) -> Unit, mo
             }
         }
     )
+}
+
+@Composable
+private fun CategoryBudgetField(value: String, onValueChange: (String) -> Unit, currencySymbol: String) {
+    val style = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface)
+
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text("Monthly limit  $currencySymbol", style = style, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        BasicTextField(
+            value = value,
+            // Only accept something that parses as a non-negative number
+            // (or empty = no limit) so the saved value is never garbage.
+            onValueChange = { new -> if (new.isEmpty() || (new.toDoubleOrNull() ?: -1.0) >= 0) onValueChange(new) },
+            textStyle = style,
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+            modifier = Modifier.padding(start = 4.dp).weight(1f),
+            decorationBox = { innerTextField ->
+                Box {
+                    if (value.isEmpty()) {
+                        Text("None", style = style, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
+                    }
+                    innerTextField()
+                }
+            }
+        )
+    }
 }
 
 @Composable
@@ -234,8 +299,9 @@ private fun IconPicker(selected: CategoryIcon, onSelect: (CategoryIcon) -> Unit,
 }
 
 @Composable
-private fun CategoryRow(category: Category, onDelete: () -> Unit) {
+private fun CategoryRow(category: Category, currencySymbol: String, onClick: () -> Unit, onDelete: () -> Unit) {
     Card(
+        onClick = onClick,
         shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
@@ -259,11 +325,16 @@ private fun CategoryRow(category: Category, onDelete: () -> Unit) {
                         tint = MaterialTheme.colorScheme.onSecondaryContainer
                     )
                 }
-                Text(
-                    category.name,
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(start = 12.dp)
-                )
+                Column(modifier = Modifier.padding(start = 12.dp)) {
+                    Text(category.name, style = MaterialTheme.typography.bodyLarge)
+                    if (category.monthlyBudget > 0) {
+                        Text(
+                            "Limit $currencySymbol${formatAmount(category.monthlyBudget)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             }
             IconButton(onClick = onDelete) {
                 Icon(Icons.Filled.Close, contentDescription = "Delete ${category.name}")
