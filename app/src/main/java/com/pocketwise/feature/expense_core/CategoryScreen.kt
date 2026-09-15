@@ -22,7 +22,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.AlertDialog
+import com.pocketwise.core.ui.components.AppDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -121,22 +121,15 @@ fun CategoryScreen(viewModel: CategoryViewModel = hiltViewModel()) {
     }
 
     categoryPendingDelete?.let { category ->
-        AlertDialog(
-            onDismissRequest = { categoryPendingDelete = null },
-            title = { Text("Delete category?") },
-            text = { Text("\"${category.name}\" will be removed. Expenses already using it keep their category name.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.deleteCategory(category)
-                    categoryPendingDelete = null
-                }) {
-                    Text("Delete")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { categoryPendingDelete = null }) { Text("Cancel") }
-            }
-        )
+        AppDialog(
+            title = "Delete category?",
+            onDismiss = { categoryPendingDelete = null },
+            confirmLabel = "Delete",
+            onConfirm = { viewModel.deleteCategory(category); categoryPendingDelete = null },
+            destructive = true,
+        ) {
+            Text("\"${category.name}\" will be removed. Expenses already using it keep their category name.")
+        }
     }
 }
 

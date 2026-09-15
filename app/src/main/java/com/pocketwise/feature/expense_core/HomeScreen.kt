@@ -22,7 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Receipt
-import androidx.compose.material3.AlertDialog
+import com.pocketwise.core.ui.components.AppDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -240,22 +240,15 @@ fun HomeScreen(
     }
 
     expensePendingDelete?.let { expense ->
-        AlertDialog(
-            onDismissRequest = { expensePendingDelete = null },
-            title = { Text("Delete expense?") },
-            text = { Text("\"${expense.description}\" ($currencySymbol${formatAmount(expense.amount)}) will be permanently removed.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.deleteExpense(expense)
-                    expensePendingDelete = null
-                }) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { expensePendingDelete = null }) { Text("Cancel") }
-            }
-        )
+        AppDialog(
+            title = "Delete expense?",
+            onDismiss = { expensePendingDelete = null },
+            confirmLabel = "Delete",
+            onConfirm = { viewModel.deleteExpense(expense); expensePendingDelete = null },
+            destructive = true,
+        ) {
+            Text("\"${expense.description}\" ($currencySymbol${formatAmount(expense.amount)}) will be permanently removed.")
+        }
     }
 }
 
@@ -475,30 +468,21 @@ private fun BudgetDialog(
 ) {
     var text by remember { mutableStateOf(if (currentBudget > 0) formatAmount(currentBudget) else "") }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Monthly Budget") },
-        text = {
-            OutlinedTextField(
-                value = text,
-                onValueChange = { text = it },
-                label = { Text("Amount ($currencySymbol)") },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
-            )
-        },
-        confirmButton = {
-            TextButton(onClick = {
-                text.toDoubleOrNull()?.let(onSave)
-                onDismiss()
-            }) {
-                Text("Save")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
-        }
-    )
+    AppDialog(
+        title = "Monthly Budget",
+        onDismiss = onDismiss,
+        confirmLabel = "Save",
+        onConfirm = { text.toDoubleOrNull()?.let(onSave); onDismiss() },
+    ) {
+        OutlinedTextField(
+            value = text,
+            onValueChange = { text = it },
+            label = { Text("Amount ($currencySymbol)") },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
 }
 
 // Tap to edit, long-press to delete. No inline delete button: it was one

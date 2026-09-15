@@ -26,7 +26,7 @@ import androidx.compose.material.icons.filled.Autorenew
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.AlertDialog
+import com.pocketwise.core.ui.components.AppDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -306,23 +306,15 @@ fun AddExpenseScreen(
 
     val expense = editingExpense
     if (showDeleteConfirm && expense != null) {
-        AlertDialog(
-            onDismissRequest = { showDeleteConfirm = false },
-            title = { Text("Delete expense?") },
-            text = { Text("\"${expense.description}\" ($currencySymbol${trimTrailingZeros(expense.amount)}) will be permanently removed.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    expenseViewModel.deleteExpense(expense)
-                    showDeleteConfirm = false
-                    onDone()
-                }) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel") }
-            }
-        )
+        AppDialog(
+            title = "Delete expense?",
+            onDismiss = { showDeleteConfirm = false },
+            confirmLabel = "Delete",
+            onConfirm = { expenseViewModel.deleteExpense(expense); showDeleteConfirm = false; onDone() },
+            destructive = true,
+        ) {
+            Text("\"${expense.description}\" ($currencySymbol${trimTrailingZeros(expense.amount)}) will be permanently removed.")
+        }
     }
 }
 

@@ -19,7 +19,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Autorenew
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material3.AlertDialog
+import com.pocketwise.core.ui.components.AppDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -32,7 +32,6 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -130,22 +129,15 @@ fun RecurringScreen(onBack: () -> Unit, viewModel: RecurringViewModel = hiltView
     }
 
     stopping?.let { rule ->
-        AlertDialog(
-            onDismissRequest = { stopping = null },
-            title = { Text("Stop repeating?") },
-            text = { Text("\"${rule.description}\" won't be added anymore. Expenses already added stay.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.stop(rule)
-                    stopping = null
-                }) {
-                    Text("Stop", color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { stopping = null }) { Text("Cancel") }
-            }
-        )
+        AppDialog(
+            title = "Stop repeating?",
+            onDismiss = { stopping = null },
+            confirmLabel = "Stop",
+            onConfirm = { viewModel.stop(rule); stopping = null },
+            destructive = true,
+        ) {
+            Text("\"${rule.description}\" won't be added anymore. Expenses already added stay.")
+        }
     }
 }
 
@@ -216,56 +208,50 @@ private fun EditRecurringDialog(
     val amount = amountText.toDoubleOrNull()?.takeIf { it > 0 }
     val day = dayText.toIntOrNull()?.takeIf { it in 1..31 }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Edit recurring expense") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
-                    value = description,
-                    onValueChange = { description = it },
-                    label = { Text("Name") },
-                    singleLine = true
-                )
-                OutlinedTextField(
-                    value = amountText,
-                    onValueChange = { if (it.isEmpty() || it.toDoubleOrNull() != null) amountText = it },
-                    label = { Text("Amount ($symbol)") },
-                    singleLine = true,
-                    isError = amount == null,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
-                )
-                OutlinedTextField(
-                    value = dayText,
-                    onValueChange = { if (it.length <= 2 && it.all(Char::isDigit)) dayText = it },
-                    label = { Text("Day of month") },
-                    singleLine = true,
-                    isError = day == null,
-                    supportingText = { Text("Days past a month's end use its last day") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                )
-                CategoryPicker(selected = category, categories = categories, onSelect = { category = it })
-                Text(
-                    "Changes apply from the next time it's added.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+    AppDialog(
+        title = "Edit recurring expense",
+        onDismiss = onDismiss,
+        confirmLabel = "Save",
+        onConfirm = {
+            if (amount != null && day != null && description.isNotBlank())
+                onSave(rule.copy(description = description.trim(), amount = amount!!, dayOfMonth = day!!, category = category))
         },
-        confirmButton = {
-            TextButton(
-                enabled = amount != null && day != null && description.isNotBlank(),
-                onClick = {
-                    onSave(rule.copy(description = description.trim(), amount = amount!!, dayOfMonth = day!!, category = category))
-                }
-            ) {
-                Text("Save")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            OutlinedTextField(
+                value = description,
+                onValueChange = { description = it },
+                label = { Text("Name") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+            OutlinedTextField(
+                value = amountText,
+                onValueChange = { if (it.isEmpty() || it.toDoubleOrNull() != null) amountText = it },
+                label = { Text("Amount ($symbol)") },
+                singleLine = true,
+                isError = amount == null,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                modifier = Modifier.fillMaxWidth()
+            )
+            OutlinedTextField(
+                value = dayText,
+                onValueChange = { if (it.length <= 2 && it.all(Char::isDigit)) dayText = it },
+                label = { Text("Day of month") },
+                singleLine = true,
+                isError = day == null,
+                supportingText = { Text("Days past a month's end use its last day") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.fillMaxWidth()
+            )
+            CategoryPicker(selected = category, categories = categories, onSelect = { category = it })
+            Text(
+                "Changes apply from the next time it's added.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
-    )
+    }
 }
 
 @Composable

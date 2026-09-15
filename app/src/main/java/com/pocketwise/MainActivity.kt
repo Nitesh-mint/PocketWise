@@ -31,6 +31,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -75,8 +76,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
@@ -359,7 +363,19 @@ class MainActivity : FragmentActivity() {
                                                 targetState = if (tab.route == "home") "PocketWise" else tab.label,
                                                 transitionSpec = { fadeIn(tween(150)) togetherWith fadeOut(tween(150)) },
                                                 label = "tabTitle"
-                                            ) { Text(it) }
+                                            ) { label ->
+                                                if (label == "PocketWise") {
+                                                    Text(
+                                                        text = buildAnnotatedString {
+                                                            append("Pocket")
+                                                            withStyle(SpanStyle(color = MaterialTheme.colorScheme.primary)) { append("Wise") }
+                                                        },
+                                                        style = MaterialTheme.typography.titleLarge
+                                                    )
+                                                } else {
+                                                    Text(label)
+                                                }
+                                            }
                                         },
                                         actions = {
                                             CurrencySelector(currencyCode = currencyCode, onSelect = expenseViewModel::setCurrency)

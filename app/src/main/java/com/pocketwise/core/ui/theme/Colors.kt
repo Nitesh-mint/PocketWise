@@ -35,10 +35,10 @@ object AppColors {
     val nearBlack = Color(0xFF0E1217)
     val nearWhite = Color(0xFFF8F8F8)
 
-    // Brand — indigo accent. One accent color app-wide: nav "+" button,
+    // Brand — money green accent. One accent color app-wide: nav "+" button,
     // selected states, FAB. Keep it out of secondary/neutral UI.
-    val brandLight = Color(0xFF296CD8)
-    val brandDark = Color(0xFF4983E5)
+    val brandLight = Color(0xFF2E7D32)  // Material Green 800 — rich, 6:1 on white
+    val brandDark = Color(0xFF66BB6A)   // Material Green 400 — vibrant on near-black
 
     // Semantic (not yet wired into ColorScheme — no success/warning/error
     // UI exists yet; kept here ready for when budget-status features need them)
