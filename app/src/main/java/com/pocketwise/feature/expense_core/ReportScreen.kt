@@ -188,9 +188,9 @@ private fun TotalHeader(total: Double, comparison: PeriodComparison?, symbol: St
 }
 
 // Spending up is bad, down is good. The icon + words carry the meaning; color
-// only reinforces it, and the text itself stays in the normal ink.
+// only reinforces it, and the text itself stays in the normal ink. Shared with Home's summary card.
 @Composable
-private fun DeltaPill(total: Double, comparison: PeriodComparison, modifier: Modifier = Modifier) {
+internal fun DeltaPill(total: Double, comparison: PeriodComparison, modifier: Modifier = Modifier) {
     val change = (total - comparison.previousTotal) / comparison.previousTotal
     val percent = (abs(change) * 100).roundToInt()
     val (icon, tint, text) = when {

@@ -12,11 +12,15 @@ interface ExpenseDao {
     @Insert
     suspend fun insert(expense: ExpenseEntity): Long
 
+    // Keeps the ids given — used to restore deleted rows on Undo.
+    @Insert
+    suspend fun insertAll(expenses: List<ExpenseEntity>)
+
     @Update
     suspend fun update(expense: ExpenseEntity)
 
     @Delete
-    suspend fun delete(expense: ExpenseEntity)
+    suspend fun delete(expenses: List<ExpenseEntity>)
 
     @Query("SELECT * FROM expenses WHERE id = :id")
     suspend fun getById(id: Long): ExpenseEntity?

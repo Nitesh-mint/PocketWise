@@ -18,6 +18,8 @@ object AppColors {
     val secondaryLight = Color(0xFFEEF0F4)
     val mutedForegroundLight = Color(0xFF5F646B)
     val borderLight = Color(0xFFE5E5E5)
+    // Hero card: whiter than the page and the gray day cards, so its shadow reads as elevation.
+    val heroSurfaceLight = Color.White
 
     // Dark theme surfaces
     val backgroundDark = Color(0xFF090D14)
@@ -30,8 +32,7 @@ object AppColors {
     // neutral, not a color, consistent with the rest of the monochrome theme.
     val heroSurfaceDark = Color(0xFF262B33)
 
-    // Neutral "primary" (near-black/white) — the inverted hero-card color,
-    // same value pair in both themes (dark mode's hero card is the light one).
+    // Neutral "primary" (near-black/white) — the inverted FAB color pair.
     val nearBlack = Color(0xFF0E1217)
     val nearWhite = Color(0xFFF8F8F8)
 
@@ -86,10 +87,10 @@ val PocketWiseLightColors = lightColorScheme(
     secondaryContainer = AppColors.secondaryLight,
     onSecondaryContainer = AppColors.nearBlack,
     // Dedicated role for the dashboard hero card — kept separate from
-    // primaryContainer (used by the nav "+" FAB) so the two can differ in
-    // dark mode without fighting over the same color slot.
-    tertiaryContainer = AppColors.nearBlack,
-    onTertiaryContainer = AppColors.nearWhite,
+    // primaryContainer (used by the nav "+" FAB). Light mirror of the dark
+    // hero: a raised neutral that stands out by shadow, not a black slab.
+    tertiaryContainer = AppColors.heroSurfaceLight,
+    onTertiaryContainer = AppColors.onSurfaceLight,
     outline = AppColors.borderLight,
     error = AppColors.destructiveLight,
     onError = Color.White,

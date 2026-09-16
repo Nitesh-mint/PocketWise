@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -26,7 +27,6 @@ import androidx.compose.material.icons.filled.Autorenew
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Delete
-import com.pocketwise.core.ui.components.AppDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -96,7 +96,6 @@ fun AddExpenseScreen(
     var showDatePicker by remember { mutableStateOf(false) }
     var editingExpense by remember { mutableStateOf<Expense?>(null) }
     var prefilled by remember { mutableStateOf(false) }
-    var showDeleteConfirm by remember { mutableStateOf(false) }
     var repeatMonthly by remember { mutableStateOf(false) }
 
     LaunchedEffect(expenseId) {
@@ -134,7 +133,8 @@ fun AddExpenseScreen(
                 // one-tap button on every list row.
                 actions = {
                     if (editingExpense != null) {
-                        IconButton(onClick = { showDeleteConfirm = true }) {
+                        // Undo snackbar (MainActivity) replaces a confirm dialog.
+                        IconButton(onClick = { expenseViewModel.deleteExpenses(listOfNotNull(editingExpense)); onDone() }) {
                             Icon(Icons.Filled.Delete, contentDescription = "Delete expense")
                         }
                     }
@@ -144,7 +144,10 @@ fun AddExpenseScreen(
         },
         bottomBar = {
             if (isReady) {
-                Column(modifier = Modifier.padding(20.dp)) {
+                // Scaffold's bottomBar isn't auto-padded for the system nav bar
+                // (only NavigationBar does that) — without this, 3-button nav
+                // overlaps the Save button.
+                Column(modifier = Modifier.navigationBarsPadding().padding(20.dp)) {
                     Button(
                         onClick = {
                             val timestamp = selectedDate.toEpochMillisAtNoon()
@@ -301,19 +304,6 @@ fun AddExpenseScreen(
             }
         ) {
             DatePicker(state = datePickerState, showModeToggle = false)
-        }
-    }
-
-    val expense = editingExpense
-    if (showDeleteConfirm && expense != null) {
-        AppDialog(
-            title = "Delete expense?",
-            onDismiss = { showDeleteConfirm = false },
-            confirmLabel = "Delete",
-            onConfirm = { expenseViewModel.deleteExpense(expense); showDeleteConfirm = false; onDone() },
-            destructive = true,
-        ) {
-            Text("\"${expense.description}\" ($currencySymbol${trimTrailingZeros(expense.amount)}) will be permanently removed.")
         }
     }
 }

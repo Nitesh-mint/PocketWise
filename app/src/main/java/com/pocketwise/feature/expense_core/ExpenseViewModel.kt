@@ -10,6 +10,8 @@ import com.pocketwise.core.util.endMillis
 import com.pocketwise.core.util.startMillis
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -17,6 +19,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -121,7 +124,18 @@ class ExpenseViewModel @Inject constructor(
         }
     }
 
-    fun deleteExpense(expense: Expense) {
-        viewModelScope.launch { repository.deleteExpense(expense) }
+    // What was just deleted, so the UI can offer Undo.
+    private val _deleted = Channel<List<Expense>>(Channel.CONFLATED)
+    val deleted: Flow<List<Expense>> = _deleted.receiveAsFlow()
+
+    fun deleteExpenses(expenses: List<Expense>) {
+        viewModelScope.launch {
+            repository.deleteExpenses(expenses)
+            _deleted.send(expenses)
+        }
+    }
+
+    fun restoreExpenses(expenses: List<Expense>) {
+        viewModelScope.launch { repository.restoreExpenses(expenses) }
     }
 }

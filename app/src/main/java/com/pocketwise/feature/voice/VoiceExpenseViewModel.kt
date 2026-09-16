@@ -1,5 +1,6 @@
 package com.pocketwise.feature.voice
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.pocketwise.core.data.local.UserPreferences
@@ -11,7 +12,10 @@ import com.pocketwise.core.data.voice.VoiceParseException
 import com.pocketwise.core.data.voice.VoiceRecorder
 import com.pocketwise.core.model.Category
 import com.pocketwise.core.model.Expense
+import com.pocketwise.core.util.VoiceChime
+import com.pocketwise.core.util.vibrateClick
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -31,7 +35,8 @@ class VoiceExpenseViewModel @Inject constructor(
     private val recorder: VoiceRecorder,
     private val expenseRepository: ExpenseRepository,
     private val categoryRepository: CategoryRepository,
-    private val userPreferences: UserPreferences
+    private val userPreferences: UserPreferences,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     sealed interface UiState {
@@ -59,6 +64,8 @@ class VoiceExpenseViewModel @Inject constructor(
         voiceJob?.cancel()
         stopRequested = false
         _state.value = UiState.Listening()
+        context.vibrateClick()
+        viewModelScope.launch { VoiceChime.playStart() }
         voiceJob = viewModelScope.launch {
             val audio = try {
                 recorder.record(
@@ -76,6 +83,8 @@ class VoiceExpenseViewModel @Inject constructor(
                 _state.value = UiState.Error(null, "Didn't hear anything. Try again, a little closer to the mic.")
                 return@launch
             }
+            context.vibrateClick()
+            viewModelScope.launch { VoiceChime.playStop() }
 
             _state.value = UiState.Parsing
             _state.value = try {

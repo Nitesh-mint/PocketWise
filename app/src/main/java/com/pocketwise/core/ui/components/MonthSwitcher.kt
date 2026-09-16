@@ -22,7 +22,10 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
+import kotlinx.coroutines.flow.collectIndexed
 import kotlinx.coroutines.launch
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
@@ -55,11 +58,16 @@ fun MonthSwitcher(
     )
     val scope = rememberCoroutineScope()
     val onSelect by rememberUpdatedState(onMonthSelected)
+    val haptics = LocalHapticFeedback.current
 
     // Commit only once a swipe settles, so a month's data loads once — not on
-    // every frame of the drag.
+    // every frame of the drag. Skip the haptic tick on the very first emission
+    // (the initial page settling on composition, not a real user scroll).
     LaunchedEffect(pagerState) {
-        snapshotFlow { pagerState.settledPage }.collect { onSelect(monthAt(it)) }
+        snapshotFlow { pagerState.settledPage }.collectIndexed { index, page ->
+            onSelect(monthAt(page))
+            if (index > 0) haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        }
     }
 
     Row(modifier = modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {

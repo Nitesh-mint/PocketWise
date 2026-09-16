@@ -34,8 +34,14 @@ class ExpenseRepository @Inject constructor(
         refreshWidget()
     }
 
-    suspend fun deleteExpense(expense: Expense) {
-        dao.delete(expense.toEntity())
+    suspend fun deleteExpenses(expenses: List<Expense>) {
+        dao.delete(expenses.map { it.toEntity() })
+        refreshWidget()
+    }
+
+    /** Undo for [deleteExpenses]: same rows, same ids. */
+    suspend fun restoreExpenses(expenses: List<Expense>) {
+        dao.insertAll(expenses.map { it.toEntity() })
         refreshWidget()
     }
 

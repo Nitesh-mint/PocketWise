@@ -36,6 +36,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -57,6 +58,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -74,6 +79,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
@@ -113,6 +122,7 @@ import com.pocketwise.feature.widget.EXTRA_EDIT_EXPENSE_ID
 import com.pocketwise.feature.widget.EXTRA_OPEN_ADD_EXPENSE
 import com.pocketwise.feature.widget.EXTRA_START_VOICE
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -264,6 +274,37 @@ class MainActivity : FragmentActivity() {
                     // modal-style task, not a destination you sit on.
                     val showChrome = currentRoute == TABS_ROUTE
 
+                    // The FAB sits over the amount column of the list, so it gets out of the way:
+                    // hidden while scrolling down, back on any scroll up. Listens on the pager, so
+                    // every tab's list drives it. The guards keep writes to real changes only.
+                    var fabVisible by remember { mutableStateOf(true) }
+                    val fabScrollConnection = remember {
+                        object : NestedScrollConnection {
+                            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                                if (available.y < -1f && fabVisible) fabVisible = false
+                                else if (available.y > 1f && !fabVisible) fabVisible = true
+                                return Offset.Zero
+                            }
+                        }
+                    }
+                    // A tab too short to scroll could otherwise leave it stuck hidden.
+                    LaunchedEffect(pagerState.currentPage) { fabVisible = true }
+
+                    // Deletes happen instantly; Undo puts the same rows back.
+                    // Lives on this outer Scaffold so it survives leaving the edit screen.
+                    val snackbarHostState = remember { SnackbarHostState() }
+                    LaunchedEffect(Unit) {
+                        // collectLatest: a new delete replaces the showing snackbar.
+                        expenseViewModel.deleted.collectLatest { deleted ->
+                            val result = snackbarHostState.showSnackbar(
+                                message = if (deleted.size == 1) "\"${deleted[0].description}\" deleted" else "${deleted.size} expenses deleted",
+                                actionLabel = "Undo",
+                                duration = SnackbarDuration.Long
+                            )
+                            if (result == SnackbarResult.ActionPerformed) expenseViewModel.restoreExpenses(deleted)
+                        }
+                    }
+
                     Scaffold(
                         // Each screen has its own Scaffold + TopAppBar, which
                         // already reserves top status-bar space. Without this,
@@ -271,27 +312,37 @@ class MainActivity : FragmentActivity() {
                         // the gap above every screen's app bar.
                         contentWindowInsets = WindowInsets(0, 0, 0, 0),
                         bottomBar = {
-                            // Animate the bar out instead of hard-hiding it —
-                            // an instant pop right as the screen also cuts is
-                            // what actually reads as janky, not just a missing
-                            // screen transition on its own.
-                            AnimatedVisibility(
-                                visible = showChrome,
-                                enter = fadeIn(tween(200)),
-                                exit = fadeOut(tween(120))
-                            ) {
-                                BottomNavBar(
-                                    currentRoute = BottomNavDestinations[pagerState.currentPage].route,
-                                    onNavigate = { route ->
-                                        val page = BottomNavDestinations.indexOfFirst { it.route == route }
-                                        scope.launch { pagerState.animateScrollToPage(page) }
-                                    }
+                            // Snackbar lives here, not in Scaffold's snackbarHost slot:
+                            // that slot always stacks above the FAB. Here it sits on
+                            // the nav bar and the FAB rises above it instead.
+                            Column {
+                                SnackbarHost(
+                                    snackbarHostState,
+                                    // NavigationBar pads for the system bar itself; without it we must.
+                                    modifier = if (showChrome) Modifier else Modifier.navigationBarsPadding()
                                 )
+                                // Animate the bar out instead of hard-hiding it —
+                                // an instant pop right as the screen also cuts is
+                                // what actually reads as janky, not just a missing
+                                // screen transition on its own.
+                                AnimatedVisibility(
+                                    visible = showChrome,
+                                    enter = fadeIn(tween(200)),
+                                    exit = fadeOut(tween(120))
+                                ) {
+                                    BottomNavBar(
+                                        currentRoute = BottomNavDestinations[pagerState.currentPage].route,
+                                        onNavigate = { route ->
+                                            val page = BottomNavDestinations.indexOfFirst { it.route == route }
+                                            scope.launch { pagerState.animateScrollToPage(page) }
+                                        }
+                                    )
+                                }
                             }
                         },
                         floatingActionButton = {
                             AnimatedVisibility(
-                                visible = showChrome,
+                                visible = showChrome && fabVisible,
                                 enter = scaleIn(tween(200)) + fadeIn(tween(200)),
                                 exit = scaleOut(tween(120)) + fadeOut(tween(120))
                             ) {
@@ -405,10 +456,12 @@ class MainActivity : FragmentActivity() {
 
                                     HorizontalPager(
                                         state = pagerState,
-                                        modifier = Modifier.weight(1f),
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .nestedScroll(fabScrollConnection),
                                         // Keep the neighbouring tab composed so a swipe
                                         // reveals a ready page instead of building it mid-drag.
-                                        beyondBoundsPageCount = 1,
+                                        beyondViewportPageCount = 1,
                                         key = { BottomNavDestinations[it].route }
                                     ) { page ->
                                         when (BottomNavDestinations[page].route) {
@@ -454,7 +507,9 @@ class MainActivity : FragmentActivity() {
                                 val expenseId = backStackEntry.arguments?.getLong("expenseId") ?: -1L
                                 AddExpenseScreen(
                                     onDone = { navController.popBackStack() },
-                                    expenseId = if (expenseId == -1L) null else expenseId
+                                    expenseId = if (expenseId == -1L) null else expenseId,
+                                    // Shared instance, so its delete events reach the snackbar above.
+                                    expenseViewModel = expenseViewModel
                                 )
                             }
                         }
