@@ -1,6 +1,9 @@
 *.iml
 .gradle/
 /local.properties
+# Signing keys never go in git — see release.* in local.properties.
+*.jks
+*.keystore
 /.idea/
 .DS_Store
 /build/
@@ -8,3 +11,9 @@
 /captures/
 .externalNativeBuild/
 .cxx/
+
+# Crash/build logs and adb backups: machine-specific, may hold personal data.
+hs_err_pid*.log
+replay_pid*.log
+build.log
+*.ab
